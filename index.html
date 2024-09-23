@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React App</title>
+    <link rel="icon" href="https://reactjs.org/favicon.ico" type="image/x-icon">
+    <style>
+        /* General Styles */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #2b2b2b;
+            color: white;
+        }
+
+        header {
+            padding: 20px;
+            text-align: center;
+            background-color: #444;
+            color: #e74c3c;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 20px;
+        }
+
+        /* Timer and Calendar */
+        .timer,
+        .calendar {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 15px;
+        }
+
+        .day {
+            padding: 15px;
+            text-align: center;
+            border: 1px solid #444;
+            border-radius: 10px;
+            background-color: #e74c3c; /* Red color for empty days */
+            position: relative;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+        }
+
+        .day:hover {
+            transform: scale(1.05);
+        }
+
+        .day[data-type] {
+            background-color: white; /* White for committed days */
+            color: black;
+        }
+
+        .day[data-type="wedding"]::before {
+            content: "💍";
+        }
+
+        .day[data-type="anniversary"]::before {
+            content: "❤";
+        }
+
+        .day[data-type="birthday"]::before {
+            content: "🎉";
+        }
+
+        .day[data-type="meeting"]::before {
+            content: "📅";
+        }
+
+        .day[data-type="study"]::before {
+            content: "📚";
+        }
+
+        /* Event Form */
+        .form-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .form-container input,
+        .form-container select,
+        .form-container textarea {
+            margin-bottom: 10px;
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            background-color: #444;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px;
+            background-color: #e74c3c;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #c0392b;
+        }
+
+        /* Upcoming Events */
+        .upcoming-events {
+            width: 100%;
+        }
+
+        .upcoming-event {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #444;
+            border-radius: 5px;
+            background-color: #333;
+            font-family: 'Comic Sans MS', cursive;
+            font-size: 1.1em;
+        }
+
+        .upcoming-event.less-than-2-days {
+            background-color: rgba(245, 39, 39, 0.66);
+        }
+
+        .upcoming-event.less-than-5-days {
+            background-color: rgba(255, 165, 0, 0.66);
+        }
+
+        .upcoming-event.more-than-5-days {
+            background-color: rgba(39, 245, 110, 0.66);
+        }
+
+        /* Responsive Styles */
+        @media (min-width: 768px) {
+            .container {
+                flex-direction: row;
+                justify-content: space-between;
+            }
+
+            .form-container {
+                width: 40%;
+                margin-right: 20px;
+            }
+
+            .calendar {
+                width: 55%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Event Calendar</h1>
+    </header>
+
+    <div class="container">
+        <!-- Timer Section -->
+        <div class="timer">
+            <h2>Next Event in: <span id="timer">--:--:--</span></h2>
+        </div>
+
+        <!-- Calendar Section -->
+        <div class="calendar" id="calendar">
+            <!-- Calendar days will be populated here -->
+        </div>
+
+        <!-- Form Section -->
+        <div class="form-container">
+            <h2>Add New Event</h2>
+            <select id="eventType">
+                <option value="wedding">Wedding</option>
+                <option value="anniversary">Anniversary</option>
+                <option value="birthday">Birthday</option>
+                <option value="meeting">Meeting</option>
+                <option value="study">Study</option>
+            </select>
+            <input type="text" id="eventTitle" placeholder="Event Title">
+            <textarea id="eventDescription" placeholder="Event Description"></textarea>
+            <input type="datetime-local" id="eventDate">
+            <input type="text" id="eventLocation" placeholder="Event Location">
+            <button id="addEventBtn">Add Event</button>
+        </div>
+    </div>
+
+    <!-- Upcoming Events Section -->
+    <div class="upcoming-events" id="upcomingEvents">
+        <h2>Upcoming Events</h2>
+        <!-- Events will be populated here -->
+    </div>
+
+    <script>
+        const calendar = document.getElementById('calendar');
+        const upcomingEvents = document.getElementById('upcomingEvents');
+        const timerElement = document.getElementById('timer');
+        const addEventBtn = document.getElementById('addEventBtn');
+
+        // Event data
+        let events = [];
+        let timerInterval;
+
+        // Generate calendar grid for the current month
+        function generateCalendar() {
+            for (let i = 1; i <= 30; i++) {
+                const dayDiv = document.createElement('div');
+                dayDiv.classList.add('day');
+                dayDiv.textContent = i;
+                dayDiv.dataset.day = i;
+                dayDiv.addEventListener('click', () => displayEventDetails(i));
+                calendar.appendChild(dayDiv);
+            }
+        }
+
+        // Display event details
+        function displayEventDetails(day) {
+            const event = events.find(e => e.day == day);
+            if (event) {
+                alert(`Event: ${event.title}\nDescription: ${event.description}\nDate: ${event.date}\nLocation: ${event.location}`);
+            }
+        }
+
+        // Add event
+        addEventBtn.addEventListener('click', () => {
+            const type = document.getElementById('eventType').value;
+            const title = document.getElementById('eventTitle').value;
+            const description = document.getElementById('eventDescription').value;
+            const date = document.getElementById('eventDate').value;
+            const location = document.getElementById('eventLocation').value;
+
+            if (!title || !description || !date || !location) {
+                alert('Please fill out all fields');
+                return;
+            }
+
+            const day = new Date(date).getDate();
+
+            events.push({ type, title, description, date, location, day });
+
+            updateCalendar();
+            updateUpcomingEvents();
+            updateTimer();
+        });
+
+        // Update calendar with events
+        function updateCalendar() {
+            const days = document.querySelectorAll('.day');
+            days.forEach(day => {
+                const event = events.find(e => e.day == day.dataset.day);
+                if (event) {
+                    day.innerHTML = ""; // No day number, only the emoji is shown
+                    day.setAttribute('data-type', event.type);
+                } else {
+                    day.innerHTML = day.dataset.day; // Show the day number if no event
+                    day.removeAttribute('data-type');
+                }
+            });
+        }
+
+        // Update upcoming events section
+        function updateUpcomingEvents() {
+            upcomingEvents.innerHTML = '<h2>Upcoming Events</h2>';
+            events.forEach(event => {
+                const eventDiv = document.createElement('div');
+                eventDiv.classList.add('upcoming-event');
+                const daysUntil = Math.ceil((new Date(event.date) - new Date()) / (1000 * 60 * 60 * 24));
+                eventDiv.innerHTML = `${event.title} - ${event.date} <button class="removeEventBtn">Remove</button>`;
+                if (daysUntil < 2) {
+                    eventDiv.classList.add('less-than-2-days');
+                } else if (daysUntil < 5) {
+                    eventDiv.classList.add('less-than-5-days');
+                } else {
+                    eventDiv.classList.add('more-than-5-days');
+                }
+
+                // Add remove event functionality
+                eventDiv.querySelector('.removeEventBtn').addEventListener('click', () => {
+                    events = events.filter(e => e !== event);
+                    updateCalendar();
+                    updateUpcomingEvents();
+                    updateTimer();
+                });
+
+                upcomingEvents.appendChild(eventDiv);
+            });
+        }
+
+        // Update the countdown timer
+        function updateTimer() {
+            clearInterval(timerInterval);
+            if (events.length === 0) {
+                timerElement.textContent = '--:--:--';
+                return;
+            }
+            const nextEvent = events.reduce((prev, curr) => new Date(prev.date) < new Date(curr.date) ? prev : curr);
+            timerInterval = setInterval(() => {
+                const now = new Date();
+                const eventDate = new Date(nextEvent.date);
+                const timeDiff = eventDate - now;
+
+                if (timeDiff <= 0) {
+                    clearInterval(timerInterval);
+                    timerElement.textContent = '00:00:00';
+                    return;
+                }
+
+                const hours = String(Math.floor(timeDiff / (1000 * 60 * 60))).padStart(2, '0');
+                const minutes = String(Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
+                const seconds = String(Math.floor((timeDiff % (1000 * 60)) / 1000)).padStart(2, '0');
+
+                timerElement.textContent = `${hours}:${minutes}:${seconds}`;
+            }, 1000);
+        }
+
+        // Initialize calendar
+        generateCalendar();
+    </script>
+</body>
+
+</html>
